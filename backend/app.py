@@ -1,6 +1,5 @@
-from datetime import datetime
 import os
-import secrets
+import uuid
 from pathlib import Path
 
 import boto3
@@ -14,7 +13,6 @@ load_dotenv(BASE_DIR / ".env")
 
 bucket = os.getenv("S3_BUCKET")
 region = os.getenv("AWS_REGION")
-
 session_kwargs = {}
 access_key = os.getenv("AWS_ACCESS_KEY_ID")
 secret_key = os.getenv("AWS_SECRET_ACCESS_KEY")
@@ -30,7 +28,6 @@ if access_key and secret_key:
 s3 = boto3.Session(**session_kwargs).client("s3", region_name=region)
 app = FastAPI(title="PaperToPaper backend")
 
-
 def _unsafe_upload_configured() -> bool:
     return bool(bucket and region)
 
@@ -44,7 +41,9 @@ async def upload_paper(paper: UploadFile = File(...)) -> JSONResponse:
     if not file_contents:
         raise HTTPException(status_code=400, detail="Uploaded file is empty.")
 
-    key = f"{int(datetime.utcnow().timestamp())}-{secrets.token_hex(4)}-{paper.filename}"
+    session_id = str(uuid.uuid4())
+    safe_name = Path(paper.filename).name
+    key = f"sessions/{session_id}/{safe_name}"
 
     try:
         s3.put_object(
@@ -56,7 +55,14 @@ async def upload_paper(paper: UploadFile = File(...)) -> JSONResponse:
     except (BotoCoreError, ClientError) as exc:
         raise HTTPException(status_code=500, detail="Unable to write to S3.") from exc
 
-    return JSONResponse({"key": key})
+    response_payload = {
+        "sessionId": session_id,
+        "s3Bucket": bucket,
+        "s3Key": key,
+        "fileName": safe_name,
+    }
+
+    return JSONResponse(response_payload)
 
 
 @app.get("/health")
