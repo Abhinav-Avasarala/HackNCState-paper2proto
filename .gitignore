@@ -15,5 +15,13 @@ frontend/build/
 backend/node_modules/
 backend/.env
 
+## Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+# dotenv files
+.env
+
 ## Misc
 *.tgz
