@@ -30,6 +30,15 @@ class VerificationResult(TypedDict):
     unsupported_claims: list[str]
 
 
+class CodeImplementation(TypedDict):
+    name: str
+    paper_basis: str
+    language: str
+    code: str
+    explanation: str
+    missing_details: Optional[str]
+
+
 class GraphState(TypedDict):
     # --- Inputs (set once at entry) ---
     user_query: str
@@ -46,6 +55,7 @@ class GraphState(TypedDict):
 
     # --- Producer output (Summarizer / Tutor / Builder) ---
     producer_output: Optional[str]
+    code_implementations: list[CodeImplementation]  # Builder-specific code snippets
 
     # --- Verifier output ---
     verification: Optional[VerificationResult]

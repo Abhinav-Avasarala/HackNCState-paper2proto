@@ -267,6 +267,7 @@ class ChatResponse(BaseModel):
     evidence_count: int
     loop_count: int
     evidence_chunks: List[dict] = []
+    code_implementations: List[dict] = []
 
 
 @app.post("/api/chat", response_model=ChatResponse)
@@ -286,6 +287,7 @@ async def chat(request: ChatRequest):
         "evidence_chunks": [],
         "coverage_map": {},
         "producer_output": None,
+        "code_implementations": [],
         "verification": None,
         "loop_count": 0,
         "needs_reretrieval": False,
@@ -315,6 +317,7 @@ async def chat(request: ChatRequest):
             }
             for i, chunk in enumerate(raw_chunks)
         ],
+        code_implementations=result.get("code_implementations", []),
     )
 
 

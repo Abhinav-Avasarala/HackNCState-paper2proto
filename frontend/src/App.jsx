@@ -1,6 +1,7 @@
 import './App.css';
 import React, { useEffect, useRef, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
+import CodeViewerOverlay from './CodeViewerOverlay';
 import DiagramOverlay from './DiagramOverlay';
 import PdfPanel from './PdfPanel';
 
@@ -85,6 +86,10 @@ export default function App() {
 
   // Diagram overlay state
   const [showDiagram, setShowDiagram] = useState(false);
+
+  // Code viewer state
+  const [showCodeViewer, setShowCodeViewer] = useState(false);
+  const [codeImplementations, setCodeImplementations] = useState([]);
 
   // PDF panel state
   const [isPdfOpen, setIsPdfOpen] = useState(false);
@@ -269,6 +274,12 @@ export default function App() {
 
       const data = await response.json();
       setLatestChunks(data.evidence_chunks || []);
+
+      // Store code implementations if present
+      if (data.code_implementations && data.code_implementations.length > 0) {
+        setCodeImplementations(data.code_implementations);
+      }
+
       setMessages((prev) => [
         ...prev,
         {
@@ -276,6 +287,7 @@ export default function App() {
           content: data.answer,
           meta: { taskType: data.task_type, verified: data.verification_label },
           evidenceChunks: data.evidence_chunks || [],
+          codeImplementations: data.code_implementations || [],
         },
       ]);
     } catch (err) {
@@ -307,6 +319,7 @@ export default function App() {
     setFailureReasons([]);
     setMessages([]);
     setInput('');
+    setCodeImplementations([]);
   };
 
   const handleChunkClick = (chunkNum) => {
@@ -464,6 +477,7 @@ export default function App() {
             {messages.map((msg, i) => {
               const hasDiagramKeyword = msg.role === 'assistant' &&
                 /\b(diagram|graph|visualization|structure|architecture|flowchart|concept\s+map)\b/i.test(msg.content);
+              const hasCodeImplementations = msg.codeImplementations && msg.codeImplementations.length > 0;
 
               return (
                 <div key={i} className={`chat-bubble ${msg.role} ${msg.error ? 'error' : ''}`}>
@@ -477,6 +491,21 @@ export default function App() {
                       msg.content
                     )}
                   </div>
+                  {hasCodeImplementations && (
+                    <button
+                      className="diagram-trigger-btn"
+                      onClick={() => {
+                        setCodeImplementations(msg.codeImplementations);
+                        setShowCodeViewer(true);
+                      }}
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <polyline points="16 18 22 12 16 6" />
+                        <polyline points="8 6 2 12 8 18" />
+                      </svg>
+                      <span>View Code ({msg.codeImplementations.length} implementation{msg.codeImplementations.length > 1 ? 's' : ''})</span>
+                    </button>
+                  )}
                   {hasDiagramKeyword && (
                     <button
                       className="diagram-trigger-btn"
@@ -549,6 +578,13 @@ export default function App() {
         highlightedChunk={highlightedChunk}
         panelWidth={pdfPanelWidth}
         onPanelResize={setPdfPanelWidth}
+      />
+
+      {/* Code Viewer Overlay */}
+      <CodeViewerOverlay
+        isOpen={showCodeViewer}
+        onClose={() => setShowCodeViewer(false)}
+        implementations={codeImplementations}
       />
 
       {/* Diagram Overlay */}
