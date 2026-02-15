@@ -624,6 +624,54 @@
   flex-shrink: 0;
 }
 
+/* Generated image display */
+.generated-image-container {
+  margin-top: 1rem;
+  border: 1px solid rgba(212, 175, 55, 0.3);
+  border-radius: 4px;
+  overflow: hidden;
+  background: rgba(0, 0, 0, 0.3);
+}
+
+.generated-image {
+  width: 100%;
+  max-width: 512px;
+  height: auto;
+  display: block;
+}
+
+.generated-image-prompt {
+  padding: 0.6rem 0.8rem;
+  font-size: 0.75rem;
+  color: rgba(200, 200, 200, 0.6);
+  font-style: italic;
+  border-top: 1px solid rgba(212, 175, 55, 0.15);
+  margin: 0;
+}
+
+.generated-image-error {
+  margin-top: 0.8rem;
+  padding: 0.6rem 0.8rem;
+  font-size: 0.8rem;
+  color: #e74c3c;
+  background: rgba(231, 76, 60, 0.1);
+  border: 1px solid rgba(231, 76, 60, 0.3);
+  border-radius: 2px;
+}
+
+.diagram-trigger-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.diagram-trigger-btn:disabled:hover {
+  transform: none;
+  box-shadow:
+    0 4px 12px rgba(212, 175, 55, 0.4),
+    0 0 20px rgba(212, 175, 55, 0.2);
+}
+
 /* Typing indicator - Like smoke rising */
 .typing-dots {
   display: flex;

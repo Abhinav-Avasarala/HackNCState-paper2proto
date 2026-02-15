@@ -100,6 +100,10 @@ export default function App() {
     return stored ? parseInt(stored, 10) : 420;
   });
 
+  // Image generation state
+  const [generatingImage, setGeneratingImage] = useState(null); // message index being generated
+  const [generatedImages, setGeneratedImages] = useState({});   // { messageIndex: { image, prompt } }
+
   const isReady = ingestionStatus === 'COMPLETE';
   const isProcessing =
     uploadStatus === 'uploading' ||
@@ -297,6 +301,46 @@ export default function App() {
       ]);
     } finally {
       setIsSending(false);
+    }
+  };
+
+  const handleGenerateImage = async (msgIndex) => {
+    if (generatingImage !== null) return; // already generating
+    setGeneratingImage(msgIndex);
+
+    try {
+      const convoHistory = messages.slice(0, msgIndex + 1).map((m) => ({
+        role: m.role,
+        content: m.content,
+      }));
+
+      const response = await fetch('/api/generate-image', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          session_id: sessionId,
+          conversation_history: convoHistory,
+        }),
+      });
+
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({}));
+        throw new Error(body.detail || 'Image generation failed.');
+      }
+
+      const data = await response.json();
+      setGeneratedImages((prev) => ({
+        ...prev,
+        [msgIndex]: { image: data.image, mime_type: data.mime_type, prompt: data.prompt },
+      }));
+    } catch (err) {
+      console.error('Image generation error:', err);
+      setGeneratedImages((prev) => ({
+        ...prev,
+        [msgIndex]: { error: err.message },
+      }));
+    } finally {
+      setGeneratingImage(null);
     }
   };
 
@@ -523,6 +567,35 @@ export default function App() {
                       </svg>
                       <span>Conspiracy Board</span>
                     </button>
+                  )}
+                  {msg.role === 'assistant' && !msg.error && msg.meta?.taskType === 'SUMMARY' && (
+                    <button
+                      className="diagram-trigger-btn"
+                      onClick={() => handleGenerateImage(i)}
+                      disabled={generatingImage !== null}
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                        <circle cx="8.5" cy="8.5" r="1.5" />
+                        <polyline points="21 15 16 10 5 21" />
+                      </svg>
+                      <span>{generatingImage === i ? 'Generating...' : 'Generate Image'}</span>
+                    </button>
+                  )}
+                  {generatedImages[i] && !generatedImages[i].error && (
+                    <div className="generated-image-container">
+                      <img
+                        src={`data:${generatedImages[i].mime_type || 'image/png'};base64,${generatedImages[i].image}`}
+                        alt="Generated visualization"
+                        className="generated-image"
+                      />
+                      <p className="generated-image-prompt">{generatedImages[i].prompt}</p>
+                    </div>
+                  )}
+                  {generatedImages[i]?.error && (
+                    <div className="generated-image-error">
+                      Failed to generate image: {generatedImages[i].error}
+                    </div>
                   )}
                   {msg.meta && (
                     <div className="bubble-meta">

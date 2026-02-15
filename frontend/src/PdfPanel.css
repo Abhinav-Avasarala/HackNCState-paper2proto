@@ -155,7 +155,8 @@
 /* ── Text Highlighting - Like marking evidence with a yellow marker ── */
 .pdf-text-highlight {
   background-color: rgba(212, 175, 55, 0.35) !important;
-  color: inherit !important;
+  color: transparent !important;
+  -webkit-text-fill-color: transparent !important;
   border-radius: 2px;
   padding: 1px 0;
   box-shadow: 0 0 0 2px rgba(212, 175, 55, 0.2);
@@ -337,3 +338,4 @@ body.resizing-pdf-panel * {
     }
   }
 }
+
