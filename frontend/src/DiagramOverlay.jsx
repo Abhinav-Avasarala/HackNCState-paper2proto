@@ -10,10 +10,10 @@ const GROUP_COLORS = {
 };
 
 const GROUP_LABELS = {
-  core: 'Core Concepts',
-  method: 'Methods',
-  result: 'Results',
-  application: 'Applications',
+  core: 'Key Evidence',
+  method: 'Techniques',
+  result: 'Findings',
+  application: 'Leads',
 };
 
 export default function DiagramOverlay({ isOpen, onClose, sessionId, conversationHistory }) {
@@ -48,7 +48,7 @@ export default function DiagramOverlay({ isOpen, onClose, sessionId, conversatio
       .then((data) => {
         if (cancelled) return;
 
-        setTitle(data.title || 'Research Concept Map');
+        setTitle(data.title || 'Case Evidence Board');
 
         const nodes = (data.nodes || []).map((n) => ({
           id: n.id,
@@ -112,7 +112,7 @@ export default function DiagramOverlay({ isOpen, onClose, sessionId, conversatio
                 <path d="M14 12l3-3M10 14l-3 1M14 14l3 1" />
               </svg>
             </div>
-            <span>{title || 'Research Concept Map'}</span>
+            <span>{title || 'Case Evidence Board'}</span>
           </div>
           <button className="close-btn" onClick={onClose}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -129,12 +129,12 @@ export default function DiagramOverlay({ isOpen, onClose, sessionId, conversatio
             {loading && (
               <div className="diagram-loading">
                 <div className="spinner" />
-                <p>Analyzing paper and extracting concepts...</p>
+                <p>Connecting the dots... Building evidence board...</p>
               </div>
             )}
             {error && (
               <div className="diagram-error">
-                <p>Could not generate diagram: {error}</p>
+                <p>Evidence board unavailable: {error}</p>
                 <button className="btn-small" onClick={onClose}>Close</button>
               </div>
             )}
@@ -294,7 +294,7 @@ export default function DiagramOverlay({ isOpen, onClose, sessionId, conversatio
                       <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
                       <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
                     </svg>
-                    Evidence from Paper
+                    Source Material
                   </h4>
                   <blockquote>{selectedNode.evidence}</blockquote>
                 </div>
@@ -347,7 +347,7 @@ export default function DiagramOverlay({ isOpen, onClose, sessionId, conversatio
           </div>
 
           <div className="diagram-hint">
-            <span>Click a node for details  •  Drag to rearrange  •  Scroll to zoom</span>
+            <span>Examine evidence  •  Rearrange clues  •  Zoom to investigate</span>
           </div>
         </div>
       </div>

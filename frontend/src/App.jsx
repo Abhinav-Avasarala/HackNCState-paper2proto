@@ -62,7 +62,7 @@ export default function App() {
 
   // Upload state
   const [uploadStatus, setUploadStatus] = useState('idle');
-  const [uploadMessage, setUploadMessage] = useState('Upload a research paper to get started.');
+  const [uploadMessage, setUploadMessage] = useState('Submit a case file to begin investigation.');
   const [fileName, setFileName] = useState(() => safeGet('fileName'));
 
   // Session / ingestion state (internal — not shown to user)
@@ -162,17 +162,17 @@ export default function App() {
   // Update upload message based on overall status
   useEffect(() => {
     if (uploadStatus === 'uploading') {
-      setUploadMessage('Uploading your paper...');
+      setUploadMessage('Filing case dossier...');
     } else if (isProcessing) {
-      setUploadMessage(`Processing "${fileName || 'document'}"...`);
+      setUploadMessage(`Analyzing "${fileName || 'evidence'}"...`);
     } else if (isReady) {
-      setUploadMessage(`"${fileName || 'document'}" is ready. Ask anything below.`);
+      setUploadMessage(`Case "${fileName || 'file'}" ready. Begin interrogation.`);
     } else if (ingestionStatus === 'FAILED') {
-      setUploadMessage('Something went wrong processing your paper. Try uploading again.');
+      setUploadMessage('Case file corrupted. Resubmit evidence.');
     } else if (uploadStatus === 'error') {
-      setUploadMessage('Upload failed. Please try again.');
+      setUploadMessage('Submission failed. Try again.');
     } else {
-      setUploadMessage('Upload a research paper to get started.');
+      setUploadMessage('Submit a case file to begin investigation.');
     }
   }, [uploadStatus, ingestionStatus, isProcessing, isReady, fileName]);
 
@@ -357,7 +357,7 @@ export default function App() {
                 <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
                 <polyline points="14 2 14 8 20 8" />
               </svg>
-              {isPdfOpen ? 'Hide Paper' : 'View Paper'}
+              {isPdfOpen ? 'Hide Dossier' : 'Case File'}
             </button>
           )}
           {showChat && isReady && (
@@ -369,16 +369,16 @@ export default function App() {
                 <circle cx="19" cy="17" r="2" />
                 <path d="M14 12l3-3M10 14l-3 1M14 14l3 1" />
               </svg>
-              View Diagram
+              Evidence Board
             </button>
           )}
           {showChat && (
             <button type="button" className="btn-small ghost" onClick={handleNewPaper}>
-              New paper
+              New Case
             </button>
           )}
           <button type="button" className="btn-small" onClick={triggerFilePicker}>
-            {fileName ? 'Replace' : 'Upload PDF'}
+            {fileName ? 'New Dossier' : 'Submit Case'}
           </button>
         </div>
       </header>
@@ -395,12 +395,12 @@ export default function App() {
         /* --- Landing / Upload view --- */
         <main className="landing">
           <div className="landing-content">
-            <p className="eyebrow">AI research companion</p>
-            <h1>Turn papers into conversations.</h1>
+            <p className="eyebrow">Research Detective Agency</p>
+            <h1>Crack the case. Uncover the evidence.</h1>
             <p className="lede">
-              Upload a research paper and ask anything — get summaries,
-              explanations, implementation plans, and more, all grounded in your
-              document.
+              Submit your research dossier and interrogate the facts — extract leads,
+              decode methodologies, blueprint implementations, and more. Every claim
+              backed by hard evidence.
             </p>
 
             <div className="upload-area" onClick={triggerFilePicker}>
@@ -412,26 +412,26 @@ export default function App() {
                 </svg>
               </div>
               <p className="upload-area-label">
-                {isProcessing ? uploadMessage : 'Click to upload a PDF'}
+                {isProcessing ? uploadMessage : 'Submit case file'}
               </p>
               {!isProcessing && (
-                <p className="upload-area-hint">PDF files up to 50 MB</p>
+                <p className="upload-area-hint">PDF dossiers up to 50 MB</p>
               )}
               {isProcessing && <div className="spinner" />}
             </div>
 
             <div className="features">
               <div className="feature-card">
-                <h3>Summarize</h3>
-                <p>Get structured summaries covering methods, results, and contributions.</p>
+                <h3>Case Synopsis</h3>
+                <p>Extract the full story — methods, findings, and key breakthroughs.</p>
               </div>
               <div className="feature-card">
-                <h3>Ask Questions</h3>
-                <p>Ask anything and receive answers grounded in the paper with citations.</p>
+                <h3>Interrogate</h3>
+                <p>Question every detail. Get answers traced directly to the evidence.</p>
               </div>
               <div className="feature-card">
-                <h3>Build</h3>
-                <p>Generate implementation plans, project ideas, and reproduction guides.</p>
+                <h3>Blueprint</h3>
+                <p>Draft implementation plans, crack the code, and recreate the work.</p>
               </div>
             </div>
           </div>
@@ -452,14 +452,14 @@ export default function App() {
           <div className="chat-messages">
             {messages.length === 0 && isReady && (
               <div className="chat-empty">
-                <p className="chat-empty-title">Paper ready</p>
-                <p>Try asking:</p>
+                <p className="chat-empty-title">Case file ready for investigation</p>
+                <p>Begin your interrogation:</p>
                 <div className="suggestions">
                   {[
-                    'Summarize this paper',
-                    'What datasets were used?',
-                    'How would I implement this?',
-                    'Explain the main method',
+                    'Give me the case synopsis',
+                    'What evidence supports the findings?',
+                    'How do I crack this code?',
+                    'Decode the methodology',
                   ].map((s) => (
                     <button
                       key={s}
@@ -503,7 +503,7 @@ export default function App() {
                         <polyline points="16 18 22 12 16 6" />
                         <polyline points="8 6 2 12 8 18" />
                       </svg>
-                      <span>View Code ({msg.codeImplementations.length} implementation{msg.codeImplementations.length > 1 ? 's' : ''})</span>
+                      <span>Examine Evidence ({msg.codeImplementations.length} piece{msg.codeImplementations.length > 1 ? 's' : ''})</span>
                     </button>
                   )}
                   {hasDiagramKeyword && (
@@ -518,7 +518,7 @@ export default function App() {
                         <circle cx="19" cy="17" r="2" />
                         <path d="M14 12l3-3M10 14l-3 1M14 14l3 1" />
                       </svg>
-                      <span>View Interactive Diagram</span>
+                      <span>Conspiracy Board</span>
                     </button>
                   )}
                   {msg.meta && (
@@ -549,7 +549,7 @@ export default function App() {
             <textarea
               className="chat-input"
               rows={1}
-              placeholder={isReady ? 'Ask about the paper...' : 'Waiting for paper to finish processing...'}
+              placeholder={isReady ? 'Interrogate the evidence...' : 'Case file processing...'}
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}

@@ -49,7 +49,7 @@ export default function CodeViewerOverlay({ isOpen, onClose, implementations }) 
               <polyline points="16 18 22 12 16 6" />
               <polyline points="8 6 2 12 8 18" />
             </svg>
-            <span>Code Implementations</span>
+            <span>Evidence Exhibits</span>
           </div>
           <button className="close-btn" onClick={onClose} type="button">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
