@@ -90,6 +90,10 @@ export default function App() {
   const [isPdfOpen, setIsPdfOpen] = useState(false);
   const [highlightedChunk, setHighlightedChunk] = useState(null);
   const [latestChunks, setLatestChunks] = useState([]);
+  const [pdfPanelWidth, setPdfPanelWidth] = useState(() => {
+    const stored = safeGet('pdfPanelWidth');
+    return stored ? parseInt(stored, 10) : 420;
+  });
 
   const isReady = ingestionStatus === 'COMPLETE';
   const isProcessing =
@@ -111,6 +115,9 @@ export default function App() {
   useEffect(() => {
     safeSet('chatMessages', messages.length ? JSON.stringify(messages) : null);
   }, [messages]);
+  useEffect(() => {
+    safeSet('pdfPanelWidth', pdfPanelWidth);
+  }, [pdfPanelWidth]);
 
   // Auto-scroll chat
   useEffect(() => {
@@ -418,7 +425,10 @@ export default function App() {
         </main>
       ) : (
         /* --- Chat view --- */
-        <main className={`chat-container ${isPdfOpen ? 'with-pdf-panel' : ''}`}>
+        <main
+          className={`chat-container ${isPdfOpen ? 'with-pdf-panel' : ''}`}
+          style={isPdfOpen ? { marginLeft: `${pdfPanelWidth}px` } : {}}
+        >
           {/* Status bar */}
           <div className={`status-bar ${isReady ? 'ready' : isProcessing ? 'processing' : 'error'}`}>
             {isProcessing && <div className="spinner-small" />}
@@ -537,6 +547,8 @@ export default function App() {
         isOpen={isPdfOpen}
         onClose={() => { setIsPdfOpen(false); setHighlightedChunk(null); }}
         highlightedChunk={highlightedChunk}
+        panelWidth={pdfPanelWidth}
+        onPanelResize={setPdfPanelWidth}
       />
 
       {/* Diagram Overlay */}

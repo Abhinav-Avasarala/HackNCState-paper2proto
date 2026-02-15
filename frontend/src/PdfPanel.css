@@ -1,6 +1,5 @@
 /* ── PDF Panel (left sidebar) ── */
 .pdf-panel {
-  width: 420px;
   height: 100vh;
   position: fixed;
   top: 0;
@@ -12,6 +11,7 @@
   border-right: 1px solid rgba(110, 159, 255, 0.15);
   box-shadow: 4px 0 24px rgba(0, 0, 0, 0.4);
   animation: panelSlideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: width 0.05s ease-out;
 }
 
 @keyframes panelSlideIn {
@@ -160,62 +160,140 @@
   cursor: not-allowed;
 }
 
-/* ── Chunk Highlight ── */
-.chunk-highlight {
-  border-top: 1px solid rgba(110, 159, 255, 0.15);
-  background: rgba(110, 159, 255, 0.04);
-  padding: 0.85rem 1.1rem;
-  max-height: 220px;
-  overflow-y: auto;
-  flex-shrink: 0;
-  animation: chunkFadeIn 0.25s ease-out;
+/* ── Text Highlighting ── */
+.pdf-text-highlight {
+  background-color: rgba(110, 159, 255, 0.35) !important;
+  color: inherit !important;
+  border-radius: 2px;
+  padding: 1px 0;
+  box-shadow: 0 0 0 2px rgba(110, 159, 255, 0.2);
+  animation: highlightPulse 0.6s ease-out;
 }
 
-@keyframes chunkFadeIn {
+@keyframes highlightPulse {
+  0% {
+    background-color: rgba(110, 159, 255, 0.6);
+    box-shadow: 0 0 0 4px rgba(110, 159, 255, 0.4);
+  }
+  100% {
+    background-color: rgba(110, 159, 255, 0.35);
+    box-shadow: 0 0 0 2px rgba(110, 159, 255, 0.2);
+  }
+}
+
+/* ── Floating Chunk Tag ── */
+.chunk-tag {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: linear-gradient(135deg, #6e9fff 0%, #5a87e8 100%);
+  padding: 0.4rem 0.65rem 0.4rem 0.75rem;
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(110, 159, 255, 0.3), 0 2px 4px rgba(0, 0, 0, 0.2);
+  z-index: 100;
+  pointer-events: auto;
+  animation: tagSlideIn 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+@keyframes tagSlideIn {
   from {
     opacity: 0;
-    transform: translateY(8px);
+    transform: translateY(-8px) scale(0.95);
   }
   to {
     opacity: 1;
-    transform: translateY(0);
+    transform: translateY(0) scale(1);
   }
 }
 
-.chunk-highlight-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 0.5rem;
-}
-
-.chunk-badge {
-  font-size: 0.72rem;
+.chunk-tag-label {
+  font-size: 0.75rem;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: #6e9fff;
-  background: rgba(110, 159, 255, 0.12);
-  padding: 0.2rem 0.55rem;
-  border-radius: 999px;
+  letter-spacing: 0.05em;
+  color: #ffffff;
+  white-space: nowrap;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
 }
 
-.chunk-score {
-  font-size: 0.72rem;
-  color: #6ef0a6;
-  font-weight: 500;
+.chunk-tag-close {
+  width: 18px;
+  height: 18px;
+  border: none;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.2);
+  color: #ffffff;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+  padding: 0;
+  flex-shrink: 0;
 }
 
-.chunk-quote {
-  font-size: 0.82rem;
-  line-height: 1.65;
-  color: #d1d5e0;
-  padding: 0.65rem 0.85rem;
-  margin: 0;
-  background: rgba(0, 0, 0, 0.3);
-  border-radius: 0.5rem;
-  border-left: 3px solid #6e9fff;
-  font-style: italic;
+.chunk-tag-close:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: scale(1.1);
+}
+
+.chunk-tag-close:active {
+  transform: scale(0.95);
+}
+
+.chunk-tag-close svg {
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.2));
+}
+
+/* ── Resize Handle ── */
+.pdf-resize-handle {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 8px;
+  height: 100%;
+  cursor: ew-resize;
+  z-index: 101;
+  background: transparent;
+  transition: background-color 0.2s;
+}
+
+.pdf-resize-handle::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 3px;
+  height: 40px;
+  background: rgba(110, 159, 255, 0.3);
+  border-radius: 2px;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.pdf-resize-handle:hover::before,
+.pdf-resize-handle.resizing::before {
+  opacity: 1;
+}
+
+.pdf-resize-handle:hover {
+  background: rgba(110, 159, 255, 0.05);
+}
+
+.pdf-resize-handle.resizing {
+  background: rgba(110, 159, 255, 0.1);
+}
+
+/* Disable text selection during resize */
+body.resizing-pdf-panel {
+  user-select: none;
+  cursor: ew-resize !important;
+}
+
+body.resizing-pdf-panel * {
+  cursor: ew-resize !important;
 }
 
 /* ── Responsive ── */

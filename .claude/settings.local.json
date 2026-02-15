@@ -1,7 +1,8 @@
 {
   "permissions": {
     "allow": [
-      "Bash(python app.py:*)"
+      "Bash(python app.py:*)",
+      "Bash(git -C /Users/noteesh/git/HackNCState-paper2proto log --oneline -10)"
     ]
   }
 }

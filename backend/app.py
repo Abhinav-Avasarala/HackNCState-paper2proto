@@ -311,6 +311,7 @@ async def chat(request: ChatRequest):
                 "text": chunk.get("text", ""),
                 "score": chunk.get("score", 0),
                 "source_uri": chunk.get("source_uri", ""),
+                "metadata": chunk.get("metadata", {}),
             }
             for i, chunk in enumerate(raw_chunks)
         ],
