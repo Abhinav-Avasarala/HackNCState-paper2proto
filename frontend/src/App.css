@@ -63,6 +63,47 @@
   box-shadow: 0 25px 45px rgba(0, 0, 0, 0.35);
 }
 
+.ingestion-card {
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 1.25rem;
+  padding: 1.5rem;
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  margin-bottom: 2rem;
+  box-shadow: 0 25px 35px rgba(0, 0, 0, 0.3);
+}
+
+.ingestion-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.ingestion-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-size: 0.95rem;
+  color: #f4f6fb;
+}
+
+.session-id {
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.failure-reasons {
+  margin-top: 1rem;
+  color: #fb7185;
+  font-size: 0.85rem;
+}
+
+.failure-reasons ul {
+  padding-left: 1rem;
+  margin: 0.35rem 0 0;
+}
+
 .upload-body {
   display: flex;
   align-items: center;

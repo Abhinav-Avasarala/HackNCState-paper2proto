@@ -49,6 +49,12 @@ Ensure `.env` (copied from `.env.example`) contains:
 - `S3_BUCKET`: the bucket name where PDFs will be stored.
 - `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` / `AWS_SESSION_TOKEN`: credentials consumed by `boto3`. Omit them if you prefer IAM roles.
 - `PORT`: optional, defaults to `4000`.
+- `KNOWLEDGE_BASE_ID`: the Bedrock knowledge base that is tied to your OpenSearch vector store.
+- `DATA_SOURCE_ID`: the knowledge base data source (must be configured to scan the `sessions/` prefix where uploads land).
+
+### Ingestion workflow
+- After an upload completes, the frontend POSTs `/api/ingest` with the `sessionId` + S3 metadata, then polls `GET /api/ingestion-status` until the job reports `COMPLETE`, `FAILED`, or `STOPPED`.
+- Make sure the knowledge base data source is pointed at the `s3://{S3_BUCKET}/sessions/` prefix so each ingestion job sees only the newest session files.
 
 
 ## Notes
