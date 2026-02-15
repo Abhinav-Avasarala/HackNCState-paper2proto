@@ -118,6 +118,11 @@
   border-radius: 2px;
   overflow: hidden;
   border: 1px solid rgba(212, 175, 55, 0.15);
+  margin-bottom: 1.5rem;
+}
+
+.pdf-viewer-scroll .react-pdf__Page:last-child {
+  margin-bottom: 0;
 }
 
 .pdf-viewer-scroll .react-pdf__Page canvas {
@@ -145,54 +150,7 @@
   color: #e57373;
 }
 
-/* ── Page Controls - Like flipping through evidence ── */
-.pdf-controls {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 1.2rem;
-  padding: 0.75rem 1rem;
-  border-top: 1px solid rgba(212, 175, 55, 0.2);
-  background: linear-gradient(0deg, rgba(40, 35, 30, 0.6) 0%, transparent 100%);
-  flex-shrink: 0;
-}
-
-.pdf-page-info {
-  font-size: 0.84rem;
-  color: #c4bfb4;
-  font-variant-numeric: tabular-nums;
-  min-width: 65px;
-  text-align: center;
-  font-family: 'Courier New', monospace;
-  letter-spacing: 0.05em;
-}
-
-.pdf-controls button {
-  width: 32px;
-  height: 32px;
-  border: 1px solid rgba(212, 175, 55, 0.3);
-  border-radius: 2px;
-  background: rgba(26, 20, 16, 0.8);
-  color: #c4bfb4;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s;
-}
-
-.pdf-controls button:hover:not(:disabled) {
-  background: rgba(212, 175, 55, 0.15);
-  border-color: rgba(212, 175, 55, 0.6);
-  color: #d4af37;
-  box-shadow: 0 0 12px rgba(212, 175, 55, 0.3);
-}
-
-.pdf-controls button:disabled {
-  opacity: 0.3;
-  cursor: not-allowed;
-  border-color: rgba(212, 175, 55, 0.15);
-}
+/* Page controls removed - now using continuous scrolling */
 
 /* ── Text Highlighting - Like marking evidence with a yellow marker ── */
 .pdf-text-highlight {

@@ -43,29 +43,30 @@ async function searchPdfForText(pdfDocument, searchText, numPages) {
 
 export default function PdfPanel({ sessionId, isOpen, onClose, highlightedChunk, panelWidth, onPanelResize }) {
   const [numPages, setNumPages] = useState(null);
-  const [pageNumber, setPageNumber] = useState(1);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [activeHighlight, setActiveHighlight] = useState(null); // Track current highlight to show tag
   const [tagPosition, setTagPosition] = useState({ top: 0, left: 0 }); // Position of the floating tag
   const [isResizing, setIsResizing] = useState(false);
-  const [isSearching, setIsSearching] = useState(false); // Track if we're searching for text
+  const [targetPageForHighlight, setTargetPageForHighlight] = useState(null); // Page to highlight on
   const pdfDocumentRef = useRef(null); // Reference to the loaded PDF document
+  const scrollContainerRef = useRef(null); // Reference to scroll container
 
   const pdfUrl = sessionId ? `/api/pdf/${sessionId}` : null;
 
   // Reset state when session changes
   useEffect(() => {
     setNumPages(null);
-    setPageNumber(1);
     setLoading(true);
     setError(null);
+    setActiveHighlight(null);
   }, [sessionId]);
 
   // Navigate to page and highlight text when chunk is clicked
   useEffect(() => {
     if (!highlightedChunk) {
       setActiveHighlight(null);
+      setTargetPageForHighlight(null);
       return;
     }
 
@@ -80,7 +81,6 @@ export default function PdfPanel({ sessionId, isOpen, onClose, highlightedChunk,
         return;
       }
 
-      setIsSearching(true);
       console.log(`Searching for chunk ${highlightedChunk.index} in ${numPages} pages...`);
 
       try {
@@ -92,14 +92,12 @@ export default function PdfPanel({ sessionId, isOpen, onClose, highlightedChunk,
 
         if (foundPage && foundPage >= 1 && foundPage <= numPages) {
           console.log(`Found chunk ${highlightedChunk.index} on page ${foundPage}`);
-          setPageNumber(foundPage);
+          setTargetPageForHighlight(foundPage);
         } else {
           console.warn(`Chunk ${highlightedChunk.index} text not found in PDF`);
         }
       } catch (err) {
         console.warn('Error searching for chunk text:', err);
-      } finally {
-        setIsSearching(false);
       }
     };
 
@@ -117,74 +115,76 @@ export default function PdfPanel({ sessionId, isOpen, onClose, highlightedChunk,
     setLoading(false);
   };
 
-  // Highlight text on the page after rendering
-  const onPageLoadSuccess = () => {
+  // Highlight text on all pages after rendering
+  const onPageLoadSuccess = (pageNum) => {
     if (!activeHighlight || !activeHighlight.text) return;
 
     // Wait a bit for the text layer to fully render
     setTimeout(() => {
-      const textLayer = document.querySelector('.react-pdf__Page__textContent');
-      if (!textLayer) return;
+      // Find text layers for all pages
+      const textLayers = document.querySelectorAll('.react-pdf__Page__textContent');
+
+      // Get the chunk text to search for (first ~100 chars for matching)
+      const searchText = activeHighlight.text.substring(0, 100).toLowerCase().trim();
 
       // Remove any existing highlights
       const existingHighlights = document.querySelectorAll('.pdf-text-highlight');
       existingHighlights.forEach(el => el.classList.remove('pdf-text-highlight'));
 
-      // Get the chunk text to search for (first ~100 chars for matching)
-      const searchText = activeHighlight.text.substring(0, 100).toLowerCase().trim();
+      // Search through all text layers
+      for (const textLayer of textLayers) {
+        const textSpans = textLayer.querySelectorAll('span');
+        let combinedText = '';
+        let matchingSpans = [];
 
-      // Find matching text spans in the text layer
-      const textSpans = textLayer.querySelectorAll('span');
-      let combinedText = '';
-      let matchingSpans = [];
+        for (let i = 0; i < textSpans.length; i++) {
+          const span = textSpans[i];
+          const spanText = span.textContent || '';
+          combinedText += spanText;
 
-      for (let i = 0; i < textSpans.length; i++) {
-        const span = textSpans[i];
-        const spanText = span.textContent || '';
-        combinedText += spanText;
+          matchingSpans.push(span);
 
-        matchingSpans.push(span);
+          // Check if we have accumulated enough text to match
+          if (combinedText.length >= searchText.length) {
+            const normalizedCombined = combinedText.toLowerCase().trim();
 
-        // Check if we have accumulated enough text to match
-        if (combinedText.length >= searchText.length) {
-          const normalizedCombined = combinedText.toLowerCase().trim();
+            if (normalizedCombined.includes(searchText)) {
+              // Highlight all the matching spans
+              matchingSpans.forEach(s => s.classList.add('pdf-text-highlight'));
 
-          if (normalizedCombined.includes(searchText)) {
-            // Highlight all the matching spans
-            matchingSpans.forEach(s => s.classList.add('pdf-text-highlight'));
+              // Scroll the first highlighted span into view and position the tag
+              if (matchingSpans[0]) {
+                matchingSpans[0].scrollIntoView({
+                  behavior: 'smooth',
+                  block: 'center'
+                });
 
-            // Scroll the first highlighted span into view and position the tag
-            if (matchingSpans[0]) {
-              matchingSpans[0].scrollIntoView({
-                behavior: 'smooth',
-                block: 'center'
-              });
+                // Calculate tag position relative to the first highlighted span
+                setTimeout(() => {
+                  const rect = matchingSpans[0].getBoundingClientRect();
+                  const viewerScroll = scrollContainerRef.current;
+                  const viewerRect = viewerScroll?.getBoundingClientRect();
 
-              // Calculate tag position relative to the first highlighted span
-              setTimeout(() => {
-                const rect = matchingSpans[0].getBoundingClientRect();
-                const viewerScroll = document.querySelector('.pdf-viewer-scroll');
-                const viewerRect = viewerScroll?.getBoundingClientRect();
-
-                if (viewerRect) {
-                  setTagPosition({
-                    top: rect.top - viewerRect.top + viewerScroll.scrollTop - 35,
-                    left: rect.left - viewerRect.left + 10
-                  });
-                }
-              }, 600); // Wait for smooth scroll to finish
+                  if (viewerRect) {
+                    setTagPosition({
+                      top: rect.top - viewerRect.top + viewerScroll.scrollTop - 35,
+                      left: rect.left - viewerRect.left + 10
+                    });
+                  }
+                }, 600);
+              }
+              return; // Found match, exit
             }
-            break;
-          }
 
-          // Sliding window: remove first span if no match yet
-          if (matchingSpans.length > 50) {
-            const removed = matchingSpans.shift();
-            combinedText = combinedText.substring(removed.textContent.length);
+            // Sliding window: remove first span if no match yet
+            if (matchingSpans.length > 50) {
+              const removed = matchingSpans.shift();
+              combinedText = combinedText.substring(removed.textContent.length);
+            }
           }
         }
       }
-    }, 150);
+    }, 200);
   };
 
   // Clear highlight handler
@@ -236,7 +236,7 @@ export default function PdfPanel({ sessionId, isOpen, onClose, highlightedChunk,
             <line x1="16" y1="13" x2="8" y2="13" />
             <line x1="16" y1="17" x2="8" y2="17" />
           </svg>
-          <span>Paper Viewer</span>
+          <span>Case Dossier</span>
         </div>
         <button className="pdf-close-btn" onClick={onClose}>
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -246,12 +246,12 @@ export default function PdfPanel({ sessionId, isOpen, onClose, highlightedChunk,
         </button>
       </div>
 
-      {/* PDF Viewer */}
-      <div className="pdf-viewer-scroll">
+      {/* PDF Viewer - Continuous Scrolling */}
+      <div className="pdf-viewer-scroll" ref={scrollContainerRef}>
         {loading && !error && (
           <div className="pdf-status-msg">
             <div className="spinner" />
-            <p>Loading PDF...</p>
+            <p>Loading case file...</p>
           </div>
         )}
         {error && (
@@ -267,41 +267,20 @@ export default function PdfPanel({ sessionId, isOpen, onClose, highlightedChunk,
             onLoadError={onDocumentLoadError}
             loading=""
           >
-            <Page
-              pageNumber={pageNumber}
-              renderTextLayer={true}
-              renderAnnotationLayer={false}
-              width={panelWidth - 50}
-              onLoadSuccess={onPageLoadSuccess}
-            />
+            {numPages && Array.from(new Array(numPages), (el, index) => (
+              <Page
+                key={`page_${index + 1}`}
+                pageNumber={index + 1}
+                renderTextLayer={true}
+                renderAnnotationLayer={false}
+                width={panelWidth - 50}
+                onLoadSuccess={() => onPageLoadSuccess(index + 1)}
+                className="pdf-page-continuous"
+              />
+            ))}
           </Document>
         )}
       </div>
-
-      {/* Page Controls */}
-      {numPages && (
-        <div className="pdf-controls">
-          <button
-            onClick={() => setPageNumber((p) => Math.max(1, p - 1))}
-            disabled={pageNumber <= 1}
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <polyline points="15 18 9 12 15 6" />
-            </svg>
-          </button>
-          <span className="pdf-page-info">
-            {pageNumber} / {numPages}
-          </span>
-          <button
-            onClick={() => setPageNumber((p) => Math.min(numPages, p + 1))}
-            disabled={pageNumber >= numPages}
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <polyline points="9 18 15 12 9 6" />
-            </svg>
-          </button>
-        </div>
-      )}
 
       {/* Floating Chunk Tag */}
       {activeHighlight && (
