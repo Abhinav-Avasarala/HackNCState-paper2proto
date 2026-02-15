@@ -440,7 +440,10 @@ export default function App() {
         /* --- Chat view --- */
         <main
           className={`chat-container ${isPdfOpen ? 'with-pdf-panel' : ''}`}
-          style={isPdfOpen ? { marginLeft: `${pdfPanelWidth}px` } : {}}
+          style={isPdfOpen ? {
+            marginLeft: `${pdfPanelWidth}px`,
+            width: `calc(100% - ${pdfPanelWidth}px)`
+          } : {}}
         >
           {/* Status bar */}
           <div className={`status-bar ${isReady ? 'ready' : isProcessing ? 'processing' : 'error'}`}>
