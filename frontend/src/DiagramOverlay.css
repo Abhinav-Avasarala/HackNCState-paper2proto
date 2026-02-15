@@ -1,0 +1,483 @@
+/* Urban Noir Diagram Overlay - Like a detective's conspiracy board */
+
+.diagram-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.92);
+  backdrop-filter: blur(8px);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  animation: fadeIn 0.3s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.diagram-container {
+  width: 100%;
+  max-width: 1400px;
+  height: 85vh;
+  background: linear-gradient(135deg, rgba(26, 20, 16, 0.98) 0%, rgba(20, 15, 10, 0.98) 100%);
+  border: 1px solid rgba(212, 175, 55, 0.3);
+  border-radius: 2px;
+  box-shadow:
+    0 20px 60px rgba(0, 0, 0, 0.9),
+    0 0 80px rgba(212, 175, 55, 0.15),
+    inset 0 1px 0 rgba(212, 175, 55, 0.1);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  position: relative;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(40px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Film grain effect */
+.diagram-container::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-image:
+    repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0, 0, 0, 0.05) 2px, rgba(0, 0, 0, 0.05) 4px);
+  opacity: 0.2;
+  pointer-events: none;
+  z-index: 100;
+}
+
+/* Amber accent line at top */
+.diagram-container::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(212, 175, 55, 0.6) 20%,
+    rgba(212, 175, 55, 0.6) 80%,
+    transparent
+  );
+  box-shadow: 0 0 12px rgba(212, 175, 55, 0.4);
+  z-index: 101;
+}
+
+/* ── Header - Like a case file header ── */
+.diagram-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.4rem 2rem;
+  border-bottom: 1px solid rgba(212, 175, 55, 0.2);
+  background: linear-gradient(180deg, rgba(40, 35, 30, 0.6) 0%, transparent 100%);
+  position: relative;
+  z-index: 102;
+}
+
+.diagram-title {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: #d4af37;
+  font-family: 'Georgia', serif;
+  text-shadow: 0 0 10px rgba(212, 175, 55, 0.3);
+}
+
+.diagram-icon {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #d4af37 0%, #b8942d 100%);
+  border-radius: 2px;
+  color: #0a0a0a;
+  box-shadow:
+    0 4px 12px rgba(212, 175, 55, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(212, 175, 55, 0.5);
+}
+
+.close-btn {
+  width: 38px;
+  height: 38px;
+  border: 1px solid rgba(212, 175, 55, 0.3);
+  border-radius: 2px;
+  background: rgba(26, 20, 16, 0.8);
+  color: #c4bfb4;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.close-btn:hover {
+  background: rgba(211, 47, 47, 0.2);
+  border-color: rgba(211, 47, 47, 0.6);
+  color: #e57373;
+  box-shadow: 0 0 12px rgba(211, 47, 47, 0.3);
+  transform: scale(1.05);
+}
+
+/* ── Body (graph + panel side-by-side) ── */
+.diagram-body {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+  position: relative;
+}
+
+/* ── Canvas - Like a cork board with evidence ── */
+.diagram-canvas {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  background:
+    radial-gradient(ellipse at 25% 25%, rgba(212, 175, 55, 0.04) 0%, transparent 50%),
+    radial-gradient(ellipse at 75% 75%, rgba(212, 175, 55, 0.03) 0%, transparent 50%),
+    linear-gradient(180deg, rgba(20, 15, 10, 0.5) 0%, rgba(10, 10, 10, 0.8) 100%);
+}
+
+/* Subtle spotlight effects */
+.diagram-canvas::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-image:
+    radial-gradient(ellipse 300px 300px at 20% 30%, rgba(212, 175, 55, 0.08), transparent),
+    radial-gradient(ellipse 400px 400px at 80% 70%, rgba(212, 175, 55, 0.05), transparent);
+  pointer-events: none;
+  opacity: 0.6;
+}
+
+/* Loading & error states */
+.diagram-loading,
+.diagram-error {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1.2rem;
+  color: #a49b8f;
+  font-size: 0.94rem;
+  z-index: 2;
+  font-family: 'Georgia', serif;
+}
+
+.diagram-error {
+  color: #e57373;
+}
+
+/* ── Detail Panel - Like investigator's notes ── */
+.diagram-detail-panel {
+  width: 360px;
+  flex-shrink: 0;
+  background: linear-gradient(135deg, rgba(26, 20, 16, 0.95) 0%, rgba(20, 15, 10, 0.98) 100%);
+  border-left: 1px solid rgba(212, 175, 55, 0.2);
+  backdrop-filter: blur(12px);
+  padding: 2rem;
+  overflow-y: auto;
+  animation: slideInRight 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  position: relative;
+  box-shadow: inset 1px 0 0 rgba(212, 175, 55, 0.1);
+}
+
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.detail-close {
+  position: absolute;
+  top: 1.2rem;
+  right: 1.2rem;
+  width: 32px;
+  height: 32px;
+  border: 1px solid rgba(212, 175, 55, 0.3);
+  border-radius: 2px;
+  background: rgba(26, 20, 16, 0.8);
+  color: #a49b8f;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.detail-close:hover {
+  background: rgba(211, 47, 47, 0.2);
+  border-color: rgba(211, 47, 47, 0.6);
+  color: #e57373;
+  box-shadow: 0 0 12px rgba(211, 47, 47, 0.3);
+}
+
+.detail-group-badge {
+  display: inline-block;
+  padding: 0.3rem 0.8rem;
+  border-radius: 2px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-bottom: 1rem;
+  border: 1px solid rgba(212, 175, 55, 0.3);
+  font-family: 'Courier New', monospace;
+  box-shadow: 0 0 8px rgba(212, 175, 55, 0.2);
+}
+
+.detail-label {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #e8e3d8;
+  margin-bottom: 1.5rem;
+  line-height: 1.3;
+  font-family: 'Georgia', serif;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.6);
+}
+
+.detail-section {
+  margin-bottom: 1.5rem;
+}
+
+.detail-section h4 {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: #d4af37;
+  margin-bottom: 0.65rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-family: sans-serif;
+  text-shadow: 0 0 8px rgba(212, 175, 55, 0.3);
+}
+
+.detail-section p {
+  font-size: 0.9rem;
+  color: #c4bfb4;
+  line-height: 1.7;
+  font-family: 'Georgia', serif;
+  font-style: italic;
+}
+
+.detail-section.evidence blockquote {
+  border-left: 3px solid rgba(212, 175, 55, 0.5);
+  padding: 0.75rem 0 0.75rem 1rem;
+  margin: 0;
+  font-size: 0.88rem;
+  color: #b4afa4;
+  line-height: 1.7;
+  font-style: italic;
+  background: rgba(212, 175, 55, 0.06);
+  border-radius: 0 2px 2px 0;
+  font-family: 'Georgia', serif;
+}
+
+.detail-section.evidence h4 svg {
+  color: #d4af37;
+  filter: drop-shadow(0 0 6px rgba(212, 175, 55, 0.4));
+}
+
+/* Connections list - Like red string connecting clues */
+.detail-connections {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.connection-chip {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.6rem 0.9rem;
+  background: rgba(26, 20, 16, 0.6);
+  border: 1px solid rgba(212, 175, 55, 0.2);
+  border-radius: 2px;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: left;
+  color: inherit;
+  font-family: 'Georgia', serif;
+  font-size: 0.84rem;
+}
+
+.connection-chip:hover {
+  background: rgba(212, 175, 55, 0.12);
+  border-color: rgba(212, 175, 55, 0.5);
+  box-shadow: 0 0 12px rgba(212, 175, 55, 0.2);
+}
+
+.connection-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  box-shadow: 0 0 8px currentColor;
+  border: 1px solid currentColor;
+}
+
+.connection-label {
+  color: #e8e3d8;
+  font-weight: 500;
+  flex: 1;
+}
+
+.connection-rel {
+  color: #d4af37;
+  font-size: 0.72rem;
+  font-style: italic;
+  opacity: 0.85;
+}
+
+/* ── Footer - Like case file metadata ── */
+.diagram-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.85rem 2rem;
+  background: linear-gradient(0deg, rgba(40, 35, 30, 0.6) 0%, transparent 100%);
+  border-top: 1px solid rgba(212, 175, 55, 0.2);
+  position: relative;
+  z-index: 102;
+}
+
+.diagram-legend {
+  display: flex;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.78rem;
+  color: #c4bfb4;
+  font-family: 'Georgia', serif;
+}
+
+.legend-color {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  box-shadow: 0 0 10px currentColor;
+  border: 1px solid currentColor;
+}
+
+.diagram-hint {
+  font-size: 0.76rem;
+  color: #a49b8f;
+  font-style: italic;
+  font-family: 'Georgia', serif;
+}
+
+/* ── Responsive ── */
+@media (max-width: 900px) {
+  .diagram-detail-panel {
+    position: absolute;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    width: 320px;
+    z-index: 5;
+    box-shadow: -10px 0 30px rgba(0, 0, 0, 0.7);
+  }
+}
+
+@media (max-width: 768px) {
+  .diagram-overlay {
+    padding: 0;
+  }
+
+  .diagram-container {
+    border-radius: 0;
+    height: 100vh;
+    max-width: 100%;
+  }
+
+  .diagram-detail-panel {
+    width: 100%;
+    height: 45%;
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    top: auto;
+    border-left: none;
+    border-top: 1px solid rgba(212, 175, 55, 0.2);
+    border-radius: 0;
+  }
+
+  .diagram-footer {
+    flex-direction: column;
+    gap: 0.65rem;
+    align-items: flex-start;
+  }
+
+  .diagram-legend {
+    gap: 1rem;
+  }
+
+  .diagram-hint {
+    text-align: left;
+    width: 100%;
+  }
+}
+
+/* Scrollbar styling */
+.diagram-detail-panel::-webkit-scrollbar {
+  width: 10px;
+}
+
+.diagram-detail-panel::-webkit-scrollbar-track {
+  background: rgba(10, 10, 10, 0.6);
+  border-left: 1px solid rgba(212, 175, 55, 0.1);
+}
+
+.diagram-detail-panel::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, rgba(212, 175, 55, 0.4) 0%, rgba(212, 175, 55, 0.3) 100%);
+  border-radius: 2px;
+  border: 1px solid rgba(212, 175, 55, 0.2);
+}
+
+.diagram-detail-panel::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, rgba(212, 175, 55, 0.6) 0%, rgba(212, 175, 55, 0.5) 100%);
+  box-shadow: 0 0 8px rgba(212, 175, 55, 0.4);
+}

@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python app.py:*)",
+      "Bash(git -C /Users/noteesh/git/HackNCState-paper2proto log --oneline -10)",
+      "Bash(curl:*)",
+      "Bash(netstat:*)",
+      "Bash(taskkill:*)",
+      "Bash(python -m uvicorn:*)",
+      "Bash(python:*)",
+      "Bash(pip install:*)",
+      "Bash(for pid in 40808 4280 4712 18072 41108 12592 23908)",
+      "Bash(do taskkill //F //PID $pid)",
+      "Bash(done)"
+    ]
+  }
+}
