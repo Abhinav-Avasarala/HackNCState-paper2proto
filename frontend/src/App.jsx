@@ -1,6 +1,43 @@
 import './App.css';
-import { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
+import DiagramOverlay from './DiagramOverlay';
+import PdfPanel from './PdfPanel';
+
+// Renders markdown but converts [Chunk N] into clickable citation buttons
+function MarkdownWithCitations({ content, onChunkClick }) {
+  const processChildren = (children) =>
+    React.Children.map(children, (child) => {
+      if (typeof child !== 'string') return child;
+      const parts = child.split(/(\[Chunk \d+\])/g);
+      return parts.map((part, i) => {
+        const m = part.match(/^\[Chunk (\d+)\]$/);
+        if (m) {
+          const num = parseInt(m[1], 10);
+          return (
+            <button
+              key={i}
+              className="chunk-citation"
+              onClick={() => onChunkClick(num)}
+              type="button"
+            >
+              [{num}]
+            </button>
+          );
+        }
+        return part;
+      });
+    });
+
+  const components = {
+    p: ({ children }) => <p>{processChildren(children)}</p>,
+    li: ({ children }) => <li>{processChildren(children)}</li>,
+    strong: ({ children }) => <strong>{processChildren(children)}</strong>,
+    em: ({ children }) => <em>{processChildren(children)}</em>,
+  };
+
+  return <ReactMarkdown components={components}>{content}</ReactMarkdown>;
+}
 
 const FINAL_STATUSES = ['COMPLETE', 'FAILED', 'STOPPING', 'STOPPED'];
 
@@ -45,6 +82,14 @@ export default function App() {
   });
   const [input, setInput] = useState('');
   const [isSending, setIsSending] = useState(false);
+
+  // Diagram overlay state
+  const [showDiagram, setShowDiagram] = useState(false);
+
+  // PDF panel state
+  const [isPdfOpen, setIsPdfOpen] = useState(false);
+  const [highlightedChunk, setHighlightedChunk] = useState(null);
+  const [latestChunks, setLatestChunks] = useState([]);
 
   const isReady = ingestionStatus === 'COMPLETE';
   const isProcessing =
@@ -216,9 +261,15 @@ export default function App() {
       }
 
       const data = await response.json();
+      setLatestChunks(data.evidence_chunks || []);
       setMessages((prev) => [
         ...prev,
-        { role: 'assistant', content: data.answer, meta: { taskType: data.task_type, verified: data.verification_label } },
+        {
+          role: 'assistant',
+          content: data.answer,
+          meta: { taskType: data.task_type, verified: data.verification_label },
+          evidenceChunks: data.evidence_chunks || [],
+        },
       ]);
     } catch (err) {
       setMessages((prev) => [
@@ -251,6 +302,23 @@ export default function App() {
     setInput('');
   };
 
+  const handleChunkClick = (chunkNum) => {
+    // Find the chunk from the most recent message that has evidence, or from latestChunks
+    let chunks = latestChunks;
+    // Walk messages backward to find the most recent assistant message with evidence
+    for (let i = messages.length - 1; i >= 0; i--) {
+      if (messages[i].evidenceChunks?.length) {
+        chunks = messages[i].evidenceChunks;
+        break;
+      }
+    }
+    const chunk = chunks.find((c) => c.index === chunkNum);
+    if (chunk) {
+      setHighlightedChunk(chunk);
+      setIsPdfOpen(true);
+    }
+  };
+
   // --- Determine which view to show ---
   const showChat = isReady || messages.length > 0;
 
@@ -263,6 +331,27 @@ export default function App() {
           <span className="topbar-file">{fileName}</span>
         )}
         <div className="topbar-actions">
+          {showChat && isReady && (
+            <button type="button" className="btn-small ghost" onClick={() => setIsPdfOpen((v) => !v)}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ marginRight: '0.35rem' }}>
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                <polyline points="14 2 14 8 20 8" />
+              </svg>
+              {isPdfOpen ? 'Hide Paper' : 'View Paper'}
+            </button>
+          )}
+          {showChat && isReady && (
+            <button type="button" className="btn-small ghost" onClick={() => setShowDiagram(true)}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ marginRight: '0.35rem' }}>
+                <circle cx="12" cy="12" r="3" />
+                <circle cx="19" cy="7" r="2" />
+                <circle cx="5" cy="17" r="2" />
+                <circle cx="19" cy="17" r="2" />
+                <path d="M14 12l3-3M10 14l-3 1M14 14l3 1" />
+              </svg>
+              View Diagram
+            </button>
+          )}
           {showChat && (
             <button type="button" className="btn-small ghost" onClick={handleNewPaper}>
               New paper
@@ -329,7 +418,7 @@ export default function App() {
         </main>
       ) : (
         /* --- Chat view --- */
-        <main className="chat-container">
+        <main className={`chat-container ${isPdfOpen ? 'with-pdf-panel' : ''}`}>
           {/* Status bar */}
           <div className={`status-bar ${isReady ? 'ready' : isProcessing ? 'processing' : 'error'}`}>
             {isProcessing && <div className="spinner-small" />}
@@ -362,25 +451,48 @@ export default function App() {
               </div>
             )}
 
-            {messages.map((msg, i) => (
-              <div key={i} className={`chat-bubble ${msg.role} ${msg.error ? 'error' : ''}`}>
-                <div className="bubble-content">
-                  {msg.role === 'assistant' ? (
-                    <ReactMarkdown>{msg.content}</ReactMarkdown>
-                  ) : (
-                    msg.content
-                  )}
-                </div>
-                {msg.meta && (
-                  <div className="bubble-meta">
-                    <span className="meta-tag">{msg.meta.taskType}</span>
-                    {msg.meta.verified === 'SUPPORTED' && (
-                      <span className="meta-tag verified">Verified</span>
+            {messages.map((msg, i) => {
+              const hasDiagramKeyword = msg.role === 'assistant' &&
+                /\b(diagram|graph|visualization|structure|architecture|flowchart|concept\s+map)\b/i.test(msg.content);
+
+              return (
+                <div key={i} className={`chat-bubble ${msg.role} ${msg.error ? 'error' : ''}`}>
+                  <div className="bubble-content">
+                    {msg.role === 'assistant' ? (
+                      <MarkdownWithCitations
+                        content={msg.content}
+                        onChunkClick={handleChunkClick}
+                      />
+                    ) : (
+                      msg.content
                     )}
                   </div>
-                )}
-              </div>
-            ))}
+                  {hasDiagramKeyword && (
+                    <button
+                      className="diagram-trigger-btn"
+                      onClick={() => setShowDiagram(true)}
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <circle cx="12" cy="12" r="3" />
+                        <circle cx="19" cy="7" r="2" />
+                        <circle cx="5" cy="17" r="2" />
+                        <circle cx="19" cy="17" r="2" />
+                        <path d="M14 12l3-3M10 14l-3 1M14 14l3 1" />
+                      </svg>
+                      <span>View Interactive Diagram</span>
+                    </button>
+                  )}
+                  {msg.meta && (
+                    <div className="bubble-meta">
+                      <span className="meta-tag">{msg.meta.taskType}</span>
+                      {msg.meta.verified === 'SUPPORTED' && (
+                        <span className="meta-tag verified">Verified</span>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
 
             {isSending && (
               <div className="chat-bubble assistant loading">
@@ -418,6 +530,22 @@ export default function App() {
           </div>
         </main>
       )}
+
+      {/* PDF Panel */}
+      <PdfPanel
+        sessionId={sessionId}
+        isOpen={isPdfOpen}
+        onClose={() => { setIsPdfOpen(false); setHighlightedChunk(null); }}
+        highlightedChunk={highlightedChunk}
+      />
+
+      {/* Diagram Overlay */}
+      <DiagramOverlay
+        isOpen={showDiagram}
+        onClose={() => setShowDiagram(false)}
+        sessionId={sessionId}
+        conversationHistory={messages.map((m) => ({ role: m.role, content: m.content }))}
+      />
     </div>
   );
 }

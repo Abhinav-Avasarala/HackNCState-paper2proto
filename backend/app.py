@@ -10,7 +10,7 @@ from botocore.exceptions import BotoCoreError, ClientError
 from dotenv import load_dotenv
 from fastapi import FastAPI, File, HTTPException, UploadFile, Query
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel, Extra
 
 from agents.graph import paper_graph
@@ -266,6 +266,7 @@ class ChatResponse(BaseModel):
     verification_label: str
     evidence_count: int
     loop_count: int
+    evidence_chunks: List[dict] = []
 
 
 @app.post("/api/chat", response_model=ChatResponse)
@@ -297,13 +298,162 @@ async def chat(request: ChatRequest):
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
+    raw_chunks = result.get("evidence_chunks", [])
     return ChatResponse(
         answer=result.get("final_answer", ""),
         task_type=result.get("router_output", {}).get("task_type", "UNKNOWN"),
         verification_label=result.get("verification", {}).get("label", "UNVERIFIED"),
-        evidence_count=len(result.get("evidence_chunks", [])),
+        evidence_count=len(raw_chunks),
         loop_count=result.get("loop_count", 0),
+        evidence_chunks=[
+            {
+                "index": i + 1,
+                "text": chunk.get("text", ""),
+                "score": chunk.get("score", 0),
+                "source_uri": chunk.get("source_uri", ""),
+            }
+            for i, chunk in enumerate(raw_chunks)
+        ],
     )
+
+
+class DiagramRequest(BaseModel):
+    session_id: str
+    conversation_history: List[dict] = []
+
+
+@app.post("/api/diagram")
+async def generate_diagram(request: DiagramRequest):
+    """Extract a concept graph from the paper using the knowledge base and LLM."""
+    if not knowledge_base_id:
+        raise HTTPException(
+            status_code=500,
+            detail="KNOWLEDGE_BASE_ID must be configured.",
+        )
+
+    from agents.bedrock_utils import retrieve_from_kb, invoke_llm, format_evidence, parse_json_response
+
+    # Retrieve broad context about the paper
+    queries = [
+        "main research question objective contribution of this paper",
+        "methods techniques algorithms approach used in this paper",
+        "results findings outcomes metrics performance",
+        "applications implications future work limitations",
+        "datasets experiments evaluation setup",
+    ]
+
+    all_chunks = []
+    seen = set()
+    for q in queries:
+        chunks = retrieve_from_kb(knowledge_base_id=knowledge_base_id, query=q, num_results=5)
+        for c in chunks:
+            text = c.get("text", "")
+            if text and text not in seen:
+                seen.add(text)
+                all_chunks.append(c)
+
+    all_chunks.sort(key=lambda c: c.get("score", 0), reverse=True)
+    all_chunks = all_chunks[:20]
+
+    evidence_text = format_evidence(all_chunks)
+
+    # Also include conversation history for extra context
+    convo_context = ""
+    for msg in request.conversation_history[-6:]:
+        role = msg.get("role", "unknown")
+        content = msg.get("content", "")
+        if content:
+            convo_context += f"{role}: {content[:500]}\n"
+
+    system_prompt = """You are a research paper analyst. Given evidence chunks from a paper and conversation history, extract the key concepts and their relationships to build an interactive concept map.
+
+Return a JSON object with this exact structure:
+{
+  "title": "Short paper title or topic",
+  "nodes": [
+    {
+      "id": "unique_id",
+      "label": "Short label (2-5 words)",
+      "detail": "1-2 sentence description with specific facts from the paper",
+      "evidence": "Direct quote or paraphrase from the paper supporting this concept",
+      "group": "core|method|result|application"
+    }
+  ],
+  "links": [
+    {
+      "source": "source_node_id",
+      "target": "target_node_id",
+      "relation": "short description of how they relate (2-5 words)"
+    }
+  ]
+}
+
+Guidelines:
+- Extract 8-15 nodes representing REAL concepts from THIS paper (not generic labels)
+- Use specific names, techniques, datasets, metrics, and findings from the evidence
+- Each node MUST have a meaningful "detail" with actual information from the paper
+- Each node MUST have "evidence" citing or paraphrasing the paper
+- Create 10-20 links showing how concepts relate
+- Groups: "core" for main topics/objectives, "method" for techniques/approaches, "result" for findings/metrics, "application" for uses/future work
+- Make labels specific (e.g. "BERT Fine-tuning" not "Method", "92.3% F1 Score" not "Metrics")
+- Return ONLY valid JSON, no markdown fences"""
+
+    user_message = f"""Evidence from the paper:
+{evidence_text}
+
+{f"Conversation context:{chr(10)}{convo_context}" if convo_context else ""}
+
+Extract the concept map for this paper."""
+
+    try:
+        raw = await asyncio.to_thread(
+            invoke_llm,
+            system=system_prompt,
+            user_message=user_message,
+            max_tokens=3000,
+            temperature=0.1,
+        )
+        parsed = parse_json_response(raw)
+        return JSONResponse(parsed)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@app.get("/api/pdf/{session_id}")
+async def get_pdf(session_id: str):
+    """Serve the uploaded PDF for a given session from S3."""
+    if not bucket or not region:
+        raise HTTPException(status_code=500, detail="S3 not configured.")
+
+    import io
+
+    try:
+        response = s3.list_objects_v2(
+            Bucket=bucket,
+            Prefix=f"sessions/{session_id}/",
+            MaxKeys=1,
+        )
+
+        if "Contents" not in response or len(response["Contents"]) == 0:
+            raise HTTPException(status_code=404, detail="PDF not found for this session.")
+
+        pdf_key = response["Contents"][0]["Key"]
+        pdf_object = s3.get_object(Bucket=bucket, Key=pdf_key)
+        pdf_bytes = pdf_object["Body"].read()
+
+        return StreamingResponse(
+            io.BytesIO(pdf_bytes),
+            media_type="application/pdf",
+            headers={
+                "Content-Disposition": f"inline; filename={session_id}.pdf",
+                "Cache-Control": "public, max-age=3600",
+            },
+        )
+    except ClientError as exc:
+        error_code = exc.response.get("Error", {}).get("Code", "")
+        if error_code == "NoSuchKey":
+            raise HTTPException(status_code=404, detail="PDF not found.") from exc
+        raise HTTPException(status_code=500, detail="Failed to fetch PDF.") from exc
 
 
 @app.get("/health")

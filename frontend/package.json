@@ -10,9 +10,13 @@
   },
   "proxy": "http://localhost:4000",
   "dependencies": {
+    "d3-force": "^3.0.0",
+    "pdfjs-dist": "^5.4.624",
     "react": "^18.3.0",
     "react-dom": "^18.3.0",
-    "react-markdown": "^10.1.0"
+    "react-force-graph-2d": "^1.29.1",
+    "react-markdown": "^10.1.0",
+    "react-pdf": "^10.3.0"
   },
   "devDependencies": {
     "react-scripts": "^5.0.1"
