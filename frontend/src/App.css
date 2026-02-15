@@ -1,0 +1,159 @@
+.app-shell {
+  min-height: 100vh;
+  padding: 3rem clamp(1rem, 4vw, 4rem) 4rem;
+  background: radial-gradient(circle at top right, #4b7bec33, transparent 45%), #05060a;
+  color: #f4f6fb;
+  font-family: 'Inter', system-ui, sans-serif;
+}
+
+.hero {
+  max-width: 720px;
+  margin-bottom: 2rem;
+}
+
+.hero h1 {
+  font-size: clamp(2.2rem, 4vw, 3.4rem);
+  margin-bottom: 1rem;
+}
+
+.hero .lede {
+  font-size: 1.05rem;
+  line-height: 1.7;
+  color: #d1d5e0;
+}
+
+.eyebrow {
+  text-transform: uppercase;
+  letter-spacing: 0.3em;
+  font-size: 0.75rem;
+  color: #9dd7ff;
+  margin-bottom: 0.75rem;
+}
+
+.hero-actions {
+  margin-top: 1.5rem;
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.hero-actions button {
+  border: none;
+  padding: 0.85rem 1.5rem;
+  border-radius: 999px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  background: #6e9fff;
+  color: #05060a;
+}
+
+.hero-actions .ghost {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: #f4f6fb;
+}
+
+.upload-card {
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 1.25rem;
+  padding: 1.5rem;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  margin-bottom: 2rem;
+  box-shadow: 0 25px 45px rgba(0, 0, 0, 0.35);
+}
+
+.upload-body {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.upload-title {
+  font-size: 1rem;
+  font-weight: 600;
+  margin: 0;
+  color: #d1d5e0;
+}
+
+.upload-status {
+  margin: 0.25rem 0 0;
+  font-size: 0.9rem;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.upload-status.uploading {
+  color: #8ad5ff;
+}
+
+.upload-status.success {
+  color: #6ef0a6;
+}
+
+.upload-status.error {
+  color: #fb7185;
+}
+
+.upload-btn {
+  border-radius: 999px;
+  font-size: 0.95rem;
+  padding: 0.75rem 1.8rem;
+  border: none;
+  font-weight: 600;
+  cursor: pointer;
+  background: linear-gradient(135deg, #6e9fff, #4f6ce6);
+  color: #05060a;
+  transition: transform 0.15s ease;
+}
+
+.upload-btn.uploading {
+  opacity: 0.8;
+  cursor: progress;
+}
+
+.upload-btn:active {
+  transform: scale(0.98);
+}
+
+.highlight-panel {
+  background: rgba(15, 19, 37, 0.9);
+  padding: 2rem;
+  border-radius: 1.5rem;
+  box-shadow: 0 20px 35px rgba(0, 0, 0, 0.45);
+  margin-bottom: 2rem;
+}
+
+.highlight-panel ul {
+  margin-top: 1rem;
+  list-style: discard;
+  padding-left: 1.25rem;
+  line-height: 1.7;
+}
+
+.workflow {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.workflow article {
+  background: rgba(255, 255, 255, 0.04);
+  padding: 1.5rem;
+  border-radius: 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.workflow h3 {
+  margin-bottom: 0.35rem;
+  font-size: 1.05rem;
+}
+
+.footer {
+  color: #a3a8c4;
+  font-size: 0.95rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  padding-top: 1rem;
+}

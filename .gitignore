@@ -1,0 +1,19 @@
+## General
+.DS_Store
+.vscode
+
+## Logs
+logs
+*.log
+npm-debug.log*
+
+## Frontend
+frontend/node_modules/
+frontend/build/
+
+## Backend
+backend/node_modules/
+backend/.env
+
+## Misc
+*.tgz
