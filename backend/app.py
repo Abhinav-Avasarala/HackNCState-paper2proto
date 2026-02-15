@@ -8,6 +8,7 @@ from botocore.exceptions import BotoCoreError, ClientError
 from dotenv import load_dotenv
 from fastapi import FastAPI, File, HTTPException, UploadFile, Query
 from fastapi.responses import JSONResponse
+from langgraph.graph import MessagesState, START, END, StateGraph
 from pydantic import BaseModel, Extra
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -33,6 +34,7 @@ if access_key and secret_key:
 aws_session = boto3.Session(**session_kwargs)
 s3 = aws_session.client("s3", region_name=region)
 app = FastAPI(title="PaperToPaper backend")
+DEFAULT_RAG_RESULTS = 6
 
 
 class IngestRequest(BaseModel):
@@ -47,7 +49,7 @@ class IngestRequest(BaseModel):
 
 class QueryRequest(BaseModel):
     question: str
-    maxResults: int | None = 6
+    maxResults: int | None = DEFAULT_RAG_RESULTS
 
     class Config:
         extra = Extra.ignore
@@ -199,6 +201,71 @@ def _rag_answer_bedrock(question: str, max_results: int | None = 6) -> str:
     return text
 
 
+def _extract_message_value(message, key: str, fallback_keys: list[str] | None = None):
+    if fallback_keys is None:
+        fallback_keys = []
+    if isinstance(message, dict):
+        value = message.get(key)
+        if value is not None:
+            return value
+        for alt_key in fallback_keys:
+            value = message.get(alt_key)
+            if value is not None:
+                return value
+        return None
+
+    value = getattr(message, key, None)
+    if value is not None:
+        return value
+    for alt_key in fallback_keys:
+        value = getattr(message, alt_key, None)
+        if value is not None:
+            return value
+    return None
+
+
+def _normalize_role(role) -> str:
+    if not role:
+        return ""
+    return str(role).strip().lower()
+
+
+def _is_user_role(role) -> bool:
+    return _normalize_role(role) in {"user", "human", "humanmessage", "human_message", "humanmessage"}
+
+
+def _is_assistant_role(role) -> bool:
+    return _normalize_role(role) in {"assistant", "ai", "robot", "aiassistant"}
+
+
+def _latest_user_question(messages: list[dict] | None) -> str | None:
+    if not messages:
+        return None
+    for message in reversed(messages):
+        role = _extract_message_value(message, "role", ["type"])
+        content = _extract_message_value(message, "content", ["text", "body"])
+        if _is_user_role(role) and content:
+            return str(content).strip()
+    return None
+
+
+def _rag_agent_node(state: MessagesState) -> dict:
+    messages = state.get("messages") or []
+    question = _latest_user_question(messages)
+    if not question:
+        raise ValueError("Langgraph agent requires a user prompt.")
+    max_results = state.get("maxResults") or DEFAULT_RAG_RESULTS
+    answer = _rag_answer_bedrock(question, max_results)
+    return {"messages": messages + [{"role": "assistant", "content": answer}]}
+
+
+_LANGGRAPH_RAG_GRAPH = StateGraph(MessagesState)
+_LANGGRAPH_RAG_GRAPH.add_node(_rag_agent_node)
+_LANGGRAPH_RAG_GRAPH.add_edge(START, "_rag_agent_node")
+_LANGGRAPH_RAG_GRAPH.add_edge("_rag_agent_node", END)
+_LANGGRAPH_RAG_GRAPH = _LANGGRAPH_RAG_GRAPH.compile()
+
+
 @app.post("/api/upload")
 async def upload_paper(paper: UploadFile = File(...)) -> JSONResponse:
     if not _unsafe_upload_configured():
@@ -299,8 +366,32 @@ async def ingestion_status(jobId: str = Query(...)) -> JSONResponse:
 
 @app.post("/api/query")
 async def query_knowledge_base(request: QueryRequest) -> JSONResponse:
-    answer = _rag_answer_bedrock(request.question, request.maxResults)
-    return JSONResponse({"answer": answer})
+    initial_state = {
+        "messages": [{"role": "user", "content": request.question}],
+        "maxResults": request.maxResults,
+    }
+    try:
+        result = _LANGGRAPH_RAG_GRAPH.invoke(initial_state)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+    messages = result.get("messages") or []
+    assistant_response = None
+    for message in reversed(messages):
+        role = _extract_message_value(message, "role", ["type"])
+        if not _is_assistant_role(role):
+            continue
+        content = _extract_message_value(message, "content", ["text", "body"])
+        if content:
+            assistant_response = str(content)
+            break
+
+    if not assistant_response:
+        raise HTTPException(status_code=500, detail="Langgraph did not return an assistant reply.")
+
+    return JSONResponse({"answer": assistant_response})
 
 
 @app.get("/health")
