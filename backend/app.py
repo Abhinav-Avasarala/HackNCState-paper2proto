@@ -1,14 +1,19 @@
+import asyncio
 import os
 import uuid
 from datetime import datetime
 from pathlib import Path
+from typing import List, Optional
 
 import boto3
 from botocore.exceptions import BotoCoreError, ClientError
 from dotenv import load_dotenv
 from fastapi import FastAPI, File, HTTPException, UploadFile, Query
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Extra
+
+from agents.graph import paper_graph
 
 BASE_DIR = Path(__file__).resolve().parent
 load_dotenv(BASE_DIR / ".env")
@@ -33,18 +38,25 @@ aws_session = boto3.Session(**session_kwargs)
 s3 = aws_session.client("s3", region_name=region)
 app = FastAPI(title="PaperToPaper backend")
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 
 class IngestRequest(BaseModel):
     sessionId: str
-    s3Key: str | None = None
-    fileName: str | None = None
-    s3Bucket: str | None = None
+    s3Key: Optional[str] = None
+    fileName: Optional[str] = None
+    s3Bucket: Optional[str] = None
 
     class Config:
         extra = Extra.allow
 
 
-def _format_datetime(value: datetime | None) -> str | None:
+def _format_datetime(value: Optional[datetime]) -> Optional[str]:
     if not value:
         return None
     if isinstance(value, datetime):
@@ -68,7 +80,7 @@ def _serialize_ingestion_job(job: dict) -> dict:
     }
 
 
-def _list_ingestion_jobs() -> list[dict]:
+def _list_ingestion_jobs() -> List[dict]:
     client = _get_bedrock_client()
     response = client.list_ingestion_jobs(
         knowledgeBaseId=knowledge_base_id,
@@ -78,7 +90,7 @@ def _list_ingestion_jobs() -> list[dict]:
     return response.get("ingestionJobs", [])
 
 
-def _latest_ingestion_job() -> dict | None:
+def _latest_ingestion_job() -> Optional[dict]:
     try:
         jobs = _list_ingestion_jobs()
     except ClientError:
@@ -126,7 +138,7 @@ def _describe_ingestion_job(job_id: str) -> dict:
     return response.get("ingestionJob", {})
 
 
-def _extract_job_id_from_response(response: dict) -> str | None:
+def _extract_job_id_from_response(response: dict) -> Optional[str]:
     if not response:
         return None
 
@@ -240,6 +252,58 @@ async def ingestion_status(jobId: str = Query(...)) -> JSONResponse:
         raise HTTPException(status_code=404, detail="Ingestion job not found.")
 
     return JSONResponse(_serialize_ingestion_job(job_details))
+
+
+class ChatRequest(BaseModel):
+    session_id: str
+    query: str
+    conversation_history: List[dict] = []
+
+
+class ChatResponse(BaseModel):
+    answer: str
+    task_type: str
+    verification_label: str
+    evidence_count: int
+    loop_count: int
+
+
+@app.post("/api/chat", response_model=ChatResponse)
+async def chat(request: ChatRequest):
+    if not knowledge_base_id:
+        raise HTTPException(
+            status_code=500,
+            detail="KNOWLEDGE_BASE_ID must be configured for chat.",
+        )
+
+    initial_state = {
+        "user_query": request.query,
+        "session_id": request.session_id,
+        "knowledge_base_id": knowledge_base_id,
+        "conversation_history": request.conversation_history,
+        "router_output": None,
+        "evidence_chunks": [],
+        "coverage_map": {},
+        "producer_output": None,
+        "verification": None,
+        "loop_count": 0,
+        "needs_reretrieval": False,
+        "final_answer": "",
+        "error": None,
+    }
+
+    try:
+        result = await asyncio.to_thread(paper_graph.invoke, initial_state)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+    return ChatResponse(
+        answer=result.get("final_answer", ""),
+        task_type=result.get("router_output", {}).get("task_type", "UNKNOWN"),
+        verification_label=result.get("verification", {}).get("label", "UNVERIFIED"),
+        evidence_count=len(result.get("evidence_chunks", [])),
+        loop_count=result.get("loop_count", 0),
+    )
 
 
 @app.get("/health")
