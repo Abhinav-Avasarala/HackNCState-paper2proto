@@ -17,6 +17,7 @@ bucket = os.getenv("S3_BUCKET")
 region = os.getenv("AWS_REGION")
 knowledge_base_id = os.getenv("KNOWLEDGE_BASE_ID")
 data_source_id = os.getenv("DATA_SOURCE_ID")
+foundation_model_arn = os.getenv("FOUNDATION_MODEL_ARN")
 session_kwargs = {}
 access_key = os.getenv("AWS_ACCESS_KEY_ID")
 secret_key = os.getenv("AWS_SECRET_ACCESS_KEY")
@@ -44,6 +45,14 @@ class IngestRequest(BaseModel):
         extra = Extra.allow
 
 
+class QueryRequest(BaseModel):
+    question: str
+    maxResults: int | None = 6
+
+    class Config:
+        extra = Extra.ignore
+
+
 def _format_datetime(value: datetime | None) -> str | None:
     if not value:
         return None
@@ -56,6 +65,20 @@ def _get_bedrock_client():
     if not region:
         raise HTTPException(status_code=500, detail="AWS_REGION must be configured to start ingestion jobs.")
     return aws_session.client("bedrock-agent", region_name=region)
+
+
+def _get_bedrock_agent_runtime_client():
+    if not region:
+        raise HTTPException(status_code=500, detail="AWS_REGION must be configured to query the knowledge base.")
+    return aws_session.client("bedrock-agent-runtime", region_name=region)
+
+
+def _get_foundation_model_arn() -> str:
+    if foundation_model_arn:
+        return foundation_model_arn
+    if not region:
+        raise HTTPException(status_code=500, detail="AWS_REGION must be configured to derive the foundation model ARN.")
+    return f"arn:aws:bedrock:{region}::foundation-model/anthropic.claude-3-5-sonnet-20240620-v1:0"
 
 
 def _serialize_ingestion_job(job: dict) -> dict:
@@ -142,6 +165,38 @@ def _extract_job_id_from_response(response: dict) -> str | None:
             return candidate
 
     return None
+
+
+def _rag_answer_bedrock(question: str, max_results: int | None = 6) -> str:
+    if not knowledge_base_id:
+        raise HTTPException(status_code=500, detail="Knowledge base is not configured.")
+    model_arn = _get_foundation_model_arn()
+    client = _get_bedrock_agent_runtime_client()
+    try:
+        response = client.retrieve_and_generate(
+            input={"text": question},
+            retrieveAndGenerateConfiguration={
+                "type": "KNOWLEDGE_BASE",
+                "knowledgeBaseConfiguration": {
+                    "knowledgeBaseId": knowledge_base_id,
+                    "modelArn": model_arn,
+                    "retrievalConfiguration": {
+                        "vectorSearchConfiguration": {
+                            "numberOfResults": max(1, max_results or 6),
+                        },
+                    },
+                },
+            },
+        )
+    except ClientError as exc:
+        error_info = exc.response.get("Error", {})
+        raise HTTPException(status_code=500, detail=error_info.get("Message", "Failed to query Bedrock.") ) from exc
+
+    output = response.get("output", {})
+    text = output.get("text")
+    if not text:
+        raise HTTPException(status_code=500, detail="Bedrock did not return an answer.")
+    return text
 
 
 @app.post("/api/upload")
@@ -240,6 +295,12 @@ async def ingestion_status(jobId: str = Query(...)) -> JSONResponse:
         raise HTTPException(status_code=404, detail="Ingestion job not found.")
 
     return JSONResponse(_serialize_ingestion_job(job_details))
+
+
+@app.post("/api/query")
+async def query_knowledge_base(request: QueryRequest) -> JSONResponse:
+    answer = _rag_answer_bedrock(request.question, request.maxResults)
+    return JSONResponse({"answer": answer})
 
 
 @app.get("/health")

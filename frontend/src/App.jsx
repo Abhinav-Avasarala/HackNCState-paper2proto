@@ -45,6 +45,10 @@ export default function App() {
     return stored ? JSON.parse(stored) : [];
   });
   const [pollingError, setPollingError] = useState('');
+  const [chatInput, setChatInput] = useState('');
+  const [chatMessages, setChatMessages] = useState([]);
+  const [chatError, setChatError] = useState('');
+  const [chatLoading, setChatLoading] = useState(false);
 
   const triggerFilePicker = () => fileInputRef.current?.click();
 
@@ -201,6 +205,42 @@ export default function App() {
     return uploadMessages.idle;
   })();
 
+  const submitChat = async (event) => {
+    event.preventDefault();
+    const question = chatInput?.trim();
+    if (!question || chatLoading) return;
+
+    setChatLoading(true);
+    setChatError('');
+    setChatMessages((prev) => [...prev, { role: 'user', text: question }]);
+    setChatInput('');
+
+    try {
+      const response = await fetch('/api/query', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ question, maxResults: 6 }),
+      });
+
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({}));
+        throw new Error(body.detail || 'Unable to get an answer.');
+      }
+
+      const payload = await response.json();
+      setChatMessages((prev) => [...prev, { role: 'assistant', text: payload.answer || 'No answer returned.' }]);
+    } catch (error) {
+      const message = error.message || 'Chat failed.';
+      setChatError(message);
+      setChatMessages((prev) => [
+        ...prev,
+        { role: 'assistant', text: `Error: ${message}` },
+      ]);
+    } finally {
+      setChatLoading(false);
+    }
+  };
+
   return (
     <div className="app-shell">
       <header className="hero">
@@ -272,6 +312,37 @@ export default function App() {
           </div>
         )}
         {pollingError && <p className="failure-reasons">Polling issue: {pollingError}</p>}
+      </section>
+
+      <section className="chat-card">
+        <div className="chat-header">
+          <h2>Ask the knowledge base</h2>
+          <p className="chat-subtitle">
+            Queries hit Bedrock's retrieval flow so answers stay grounded to the uploaded paper.
+          </p>
+        </div>
+        <div className="chat-messages">
+          {chatMessages.length === 0 && <p className="chat-empty">Upload a paper and ask your first question.</p>}
+          {chatMessages.map((message, index) => (
+            <div key={`${message.role}-${index}`} className={`chat-message ${message.role}`}>
+              <span className="chat-role">{message.role === 'user' ? 'You' : 'Assistant'}</span>
+              <p>{message.text}</p>
+            </div>
+          ))}
+        </div>
+        <form className="chat-form" onSubmit={submitChat}>
+          <input
+            type="text"
+            placeholder="Ask about the paper..."
+            value={chatInput}
+            onChange={(event) => setChatInput(event.target.value)}
+            disabled={chatLoading}
+          />
+          <button type="submit" disabled={chatLoading || !chatInput.trim()}>
+            {chatLoading ? 'Thinking…' : 'Send'}
+          </button>
+        </form>
+        {chatError && <p className="chat-error">{chatError}</p>}
       </section>
 
       <section className="highlight-panel">
